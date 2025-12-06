@@ -98,7 +98,7 @@ nano .env
 DATABASE_URL="mysql://teacher_user:Hh1133557799a@localhost:3306/teacher_program"
 
 # JWT
-JWT_SECRET=your_super_secret_jwt_key_here_change_this_to_random_string
+JWT_SECRET=techer-program-jwt-secret-2024
 JWT_EXPIRES_IN=7d
 
 # Server
