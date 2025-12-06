@@ -1,4 +1,12 @@
-# دليل النشر السريع على VPS
+# دليل النشر السريع
+
+## معلومات الخادم
+
+- **VPS:** 77.37.51.19 (root)
+- **Frontend:** https://lightsalmon-dove-690724.hostingersite.com
+- **Backend:** 77.37.51.19:5000
+
+---
 
 ## الخطوات السريعة
 
@@ -7,60 +15,59 @@
 ssh root@77.37.51.19
 ```
 
-### 2. استنساخ المشروع
+### 2. تثبيت المتطلبات
+```bash
+curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+apt-get install -y nodejs nginx mysql-server
+npm install -g pm2
+```
+
+### 3. استنساخ المشروع
 ```bash
 mkdir -p /var/www/teacher-program
 cd /var/www/teacher-program
 git clone https://github.com/letrat/teacher-program.git .
 ```
 
-### 3. إعداد قاعدة البيانات
+### 4. إعداد قاعدة البيانات
 ```bash
 mysql -u root -p
+```
+
+في MySQL:
+```sql
 CREATE DATABASE teacher_program CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'teacher_user'@'localhost' IDENTIFIED BY 'Hh1133557799a';
+GRANT ALL PRIVILEGES ON teacher_program.* TO 'teacher_user'@'localhost';
+FLUSH PRIVILEGES;
 EXIT;
 ```
 
-### 4. إعداد ملفات البيئة
+### 5. إعداد Backend `.env`
+```bash
+cd /var/www/teacher-program/backend
+nano .env
+```
 
-**⚠️ ملاحظة:** إذا كان Frontend يعمل على استضافة أخرى، يجب إعداد CORS في Backend.
-
-**`backend/.env` (على VPS):**
+أضف:
 ```env
-DATABASE_URL="mysql://root:your_password@localhost:3306/teacher_program"
+DATABASE_URL="mysql://teacher_user:Hh1133557799a@localhost:3306/teacher_program"
 JWT_SECRET=your_super_secret_jwt_key_change_this
 JWT_EXPIRES_IN=7d
 PORT=5000
 NODE_ENV=production
-# ⚠️ أضف نطاق Frontend هنا (مفصول بفواصل)
 CORS_ORIGIN=https://lightsalmon-dove-690724.hostingersite.com,http://localhost:3000
 FRONTEND_URL=https://lightsalmon-dove-690724.hostingersite.com
+UPLOAD_DIR=./uploads
+MAX_FILE_SIZE=10485760
 ```
 
-**`.env` في Frontend (على الاستضافة الأخرى):**
-```env
-NEXT_PUBLIC_API_URL=http://77.37.51.19:5000/api
-# أو إذا كان Backend خلف Nginx:
-# NEXT_PUBLIC_API_URL=http://77.37.51.19/api
-NODE_ENV=production
-```
-
-### 5. تثبيت المتطلبات
+**⚠️ مهم:** استبدل `your_super_secret_jwt_key_change_this` بمفتاح قوي:
 ```bash
-# تثبيت Node.js 20
-curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-apt-get install -y nodejs
-
-# تثبيت PM2
-npm install -g pm2
-
-# تثبيت Nginx
-apt-get update
-apt-get install -y nginx
+openssl rand -base64 32
 ```
 
-### 6. بناء وتشغيل Backend على VPS
-
+### 6. بناء Backend
 ```bash
 cd /var/www/teacher-program/backend
 npm install
@@ -69,39 +76,25 @@ npm run db:push
 npm run build
 ```
 
-### 7. تشغيل Backend باستخدام PM2
+### 7. تشغيل Backend
 ```bash
 cd /var/www/teacher-program
-# تشغيل Backend فقط (Frontend على استضافة أخرى)
+mkdir -p /var/log/pm2
 pm2 start ecosystem.config.js --only teacher-program-backend
 pm2 save
 pm2 startup
 ```
 
-### 8. إعداد Frontend على الاستضافة الأخرى
+### 8. إعداد Nginx
+```bash
+nano /etc/nginx/sites-available/teacher-program
+```
 
-1. ارفع ملفات Frontend إلى الاستضافة
-2. أنشئ ملف `.env` مع `NEXT_PUBLIC_API_URL=http://77.37.51.19:5000/api`
-3. شغّل `npm install && npm run build && npm start`
-
-### 9. إعداد Nginx (اختياري - فقط إذا أردت Reverse Proxy)
-
-إنشاء ملف `/etc/nginx/sites-available/teacher-program`:
+أضف:
 ```nginx
 server {
     listen 80;
     server_name 77.37.51.19;
-
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_cache_bypass $http_upgrade;
-    }
 
     location /api {
         proxy_pass http://localhost:5000/api;
@@ -109,78 +102,102 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+
+    location /uploads {
+        alias /var/www/teacher-program/public/uploads;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
     }
 
     client_max_body_size 10M;
+    gzip on;
+    gzip_vary on;
+    gzip_types text/plain text/css text/xml text/javascript application/json;
 }
 ```
 
-تفعيل الموقع:
+تفعيل:
 ```bash
 ln -s /etc/nginx/sites-available/teacher-program /etc/nginx/sites-enabled/
+rm /etc/nginx/sites-enabled/default
 nginx -t
 systemctl restart nginx
 ```
 
-### 10. فتح المنافذ
+### 9. فتح المنافذ
 ```bash
-ufw allow 80/tcp
-ufw allow 443/tcp
-ufw allow 22/tcp
+ufw allow 80/tcp 443/tcp 22/tcp 5000/tcp
+ufw enable
 ```
 
-### 11. التحقق
-- Frontend: https://lightsalmon-dove-690724.hostingersite.com (على الاستضافة الأخرى)
-- Backend API: http://77.37.51.19:5000/api (على VPS)
+### 10. إعداد Frontend على الاستضافة الأخرى
+
+1. ارفع ملفات Frontend إلى الاستضافة
+2. أنشئ `.env`:
+   ```env
+   NEXT_PUBLIC_API_URL=http://77.37.51.19/api
+   NODE_ENV=production
+   ```
+3. شغّل:
+   ```bash
+   npm install
+   npm run build
+   npm start
+   ```
+
+---
+
+## التحقق
+
+- Backend: `http://77.37.51.19/api`
+- Frontend: `https://lightsalmon-dove-690724.hostingersite.com`
 
 ---
 
 ## أوامر مفيدة
 
 ```bash
-# عرض حالة PM2
+# PM2
 pm2 status
+pm2 logs teacher-program-backend
+pm2 restart teacher-program-backend
 
-# عرض السجلات
-pm2 logs
+# Nginx
+systemctl status nginx
+nginx -t
+systemctl restart nginx
 
-# إعادة تشغيل
-pm2 restart all
-
-# إيقاف
-pm2 stop all
+# MySQL
+mysql -u teacher_user -p
 ```
 
 ---
 
-## التحديثات المستقبلية
+## التحديثات
 
+### Backend (VPS):
 ```bash
 cd /var/www/teacher-program
-git pull origin main  # أو git pull إذا كنت تستخدم SSH
-
-# Backend
+git pull
 cd backend
 npm install
 npm run build
 pm2 restart teacher-program-backend
+```
 
-# Frontend
-cd ..
+### Frontend (الاستضافة الأخرى):
+```bash
+git pull  # أو رفع الملفات يدوياً
 npm install
 npm run build
-pm2 restart teacher-program-frontend
+npm start
 ```
 
 ---
 
-## ملاحظات مهمة
-
-1. استبدل `your_password` و `your_super_secret_jwt_key_change_this` بقيم حقيقية
-2. إذا كان لديك نطاق، استبدل `77.37.51.19` بالنطاق
-3. للحصول على SSL، استخدم Certbot: `certbot --nginx -d yourdomain.com`
-
----
-
 للمزيد من التفاصيل، راجع `DEPLOYMENT.md`
-
