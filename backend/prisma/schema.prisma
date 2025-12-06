@@ -1,0 +1,240 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  SCHOOL_MANAGER
+  TEACHER
+}
+
+enum SubmissionStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  password  String
+  name      String
+  phone     String?  // رقم الجوال
+  email     String?  // البريد الإلكتروني
+  role      UserRole
+  schoolId  String?
+  jobTypeId String?
+  status    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  school        School?              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  jobType       JobType?             @relation(fields: [jobTypeId], references: [id])
+  submissions   EvidenceSubmission[]
+  notifications Notification[]
+
+  @@index([schoolId])
+  @@index([jobTypeId])
+  @@index([role])
+  @@index([schoolId, role, status]) // Composite index for common queries
+  @@map("users")
+}
+
+model School {
+  id                 String    @id @default(uuid())
+  name               String
+  status             Boolean   @default(true)
+  subscriptionStart  DateTime? // تاريخ بداية الاشتراك
+  subscriptionEnd    DateTime? // تاريخ نهاية الاشتراك
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  users               User[]
+  kpis                KPI[]
+  schoolKPIs          SchoolKPI[]
+  schoolJobTypeKPIs   SchoolJobTypeKPI[]
+  evidenceItems       EvidenceItem[]
+  schoolEvidenceItems SchoolEvidenceItem[]
+
+  @@map("schools")
+}
+
+model JobType {
+  id        String   @id @default(uuid())
+  name      String
+  status    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users             User[]
+  kpis              KPI[]
+  schoolJobTypeKPIs SchoolJobTypeKPI[]
+
+  @@map("job_types")
+}
+
+model KPI {
+  id                  String   @id @default(uuid())
+  jobTypeId           String
+  name                String
+  weight              Float    @default(0) // 0-100
+  minAcceptedEvidence Int?     // الحد الأدنى لعدد الشواهد المقبولة المطلوبة (إلزامي في التطبيق)
+  isOfficial          Boolean  @default(true) // true = من الأدمن, false = من المدرسة
+  schoolId            String? // null = رسمي من الأدمن
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  jobType           JobType              @relation(fields: [jobTypeId], references: [id], onDelete: Cascade)
+  school            School?              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  schoolKPIs        SchoolKPI[]
+  schoolJobTypeKPIs SchoolJobTypeKPI[]
+  evidenceItems     EvidenceItem[]
+  submissions       EvidenceSubmission[]
+
+  @@index([jobTypeId])
+  @@index([schoolId])
+  @@map("kpis")
+}
+
+model SchoolKPI {
+  id        String   @id @default(uuid())
+  schoolId  String
+  kpiId     String
+  createdAt DateTime @default(now())
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  kpi    KPI    @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, kpiId])
+  @@index([schoolId])
+  @@index([kpiId])
+  @@map("school_kpis")
+}
+
+model SchoolJobTypeKPI {
+  id        String   @id @default(uuid())
+  schoolId  String
+  jobTypeId String
+  kpiId     String
+  weight    Float    @default(0) // 0-100
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  school  School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  jobType JobType @relation(fields: [jobTypeId], references: [id], onDelete: Cascade)
+  kpi     KPI     @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, jobTypeId, kpiId])
+  @@index([schoolId, jobTypeId])
+  @@map("school_job_type_kpis")
+}
+
+model EvidenceItem {
+  id         String   @id @default(uuid())
+  kpiId      String
+  name       String
+  isOfficial Boolean  @default(true)
+  schoolId   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  kpi                 KPI                  @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+  school              School?              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  schoolEvidenceItems SchoolEvidenceItem[]
+  submissions         EvidenceSubmission[]
+
+  @@index([kpiId])
+  @@index([schoolId])
+  @@map("evidence_items")
+}
+
+model SchoolEvidenceItem {
+  id         String   @id @default(uuid())
+  schoolId   String
+  evidenceId String
+  createdAt  DateTime @default(now())
+
+  school   School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  evidence EvidenceItem @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, evidenceId])
+  @@index([schoolId])
+  @@index([evidenceId])
+  @@map("school_evidence_items")
+}
+
+model EvidenceSubmission {
+  id           String           @id @default(uuid())
+  teacherId    String
+  kpiId        String
+  evidenceId   String
+  fileUrl      String
+  description  String?
+  status       SubmissionStatus @default(PENDING)
+  rating       Int? // 1-5
+  rejectReason String?
+  reviewedAt   DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  teacher  User         @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  kpi      KPI          @relation(fields: [kpiId], references: [id])
+  evidence EvidenceItem @relation(fields: [evidenceId], references: [id])
+
+  @@index([teacherId])
+  @@index([status])
+  @@index([kpiId])
+  @@index([evidenceId])
+  @@index([teacherId, kpiId, status]) // Composite index for common queries
+  @@map("evidence_submissions")
+}
+
+model ActivityLog {
+  id        String   @id @default(uuid())
+  userId    String
+  action    String
+  details   String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+
+enum NotificationType {
+  EVIDENCE_SUBMITTED
+  EVIDENCE_ACCEPTED
+  EVIDENCE_REJECTED
+  TEACHER_ADDED
+  KPI_ADDED
+  EVIDENCE_ADDED
+  WEIGHT_UPDATED
+  SYSTEM_NOTIFICATION
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  link      String?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+  @@map("notifications")
+}
