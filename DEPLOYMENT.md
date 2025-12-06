@@ -55,21 +55,62 @@ apt-get install -y mysql-server
 
 ## الخطوة 3: رفع المشروع إلى VPS
 
-### الطريقة 1: استخدام Git (موصى به)
+### الطريقة 1: استخدام Git مع SSH (موصى به للمستودع الخاص)
+
+#### أ. إعداد SSH Keys على VPS
+
+```bash
+# توليد SSH key جديد (إذا لم يكن موجوداً)
+ssh-keygen -t ed25519 -C "your_email@example.com"
+# اضغط Enter للقبول المسار الافتراضي
+# أدخل كلمة مرور (اختياري)
+
+# عرض المفتاح العام
+cat ~/.ssh/id_ed25519.pub
+```
+
+#### ب. إضافة SSH Key إلى GitHub
+
+1. انسخ محتوى `~/.ssh/id_ed25519.pub` من VPS
+2. اذهب إلى GitHub → Settings → SSH and GPG keys
+3. اضغط "New SSH key"
+4. الصق المفتاح واضغط "Add SSH key"
+
+#### ج. استنساخ المستودع الخاص
 
 ```bash
 # إنشاء مجلد للمشروع
 mkdir -p /var/www/teacher-program
 cd /var/www/teacher-program
 
-# استنساخ المشروع من GitHub
-git clone https://github.com/letrat/teacher-program.git .
-
-# أو إذا كان المستودع خاص، استخدم SSH
-# git clone git@github.com:letrat/teacher-program.git .
+# استنساخ المستودع الخاص باستخدام SSH
+git clone git@github.com:letrat/teacher-program.git .
 ```
 
-### الطريقة 2: رفع الملفات يدوياً
+### الطريقة 2: استخدام Git مع Personal Access Token
+
+إذا كنت تفضل استخدام HTTPS مع Personal Access Token:
+
+```bash
+# إنشاء مجلد للمشروع
+mkdir -p /var/www/teacher-program
+cd /var/www/teacher-program
+
+# استنساخ المستودع باستخدام Token
+# استبدل YOUR_TOKEN بـ Personal Access Token من GitHub
+git clone https://YOUR_TOKEN@github.com/letrat/teacher-program.git .
+
+# أو استخدم اسم المستخدم و Token
+git clone https://letrat:YOUR_TOKEN@github.com/letrat/teacher-program.git .
+```
+
+**كيفية إنشاء Personal Access Token:**
+1. اذهب إلى GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)
+2. اضغط "Generate new token (classic)"
+3. اختر الصلاحيات: `repo` (للوصول الكامل للمستودعات الخاصة)
+4. انسخ Token واستخدمه في الأمر أعلاه
+
+### الطريقة 3: رفع الملفات يدوياً
 
 استخدم `scp` أو `rsync` أو FileZilla لرفع الملفات.
 
@@ -475,11 +516,16 @@ pm2 restart teacher-program-frontend
 cd /var/www/teacher-program
 
 # سحب التحديثات من GitHub
-git pull
+# إذا كنت تستخدم SSH (موصى به)
+git pull origin main
+
+# أو إذا كنت تستخدم HTTPS مع Token
+# git pull https://YOUR_TOKEN@github.com/letrat/teacher-program.git main
 
 # Backend
 cd backend
 npm install
+npm run db:generate  # إذا كان هناك تغييرات في Schema
 npm run build
 pm2 restart teacher-program-backend
 
@@ -488,6 +534,15 @@ cd ..
 npm install
 npm run build
 pm2 restart teacher-program-frontend
+```
+
+**ملاحظة:** إذا كنت تستخدم HTTPS مع Token، يمكنك حفظ بيانات الاعتماد:
+
+```bash
+# حفظ بيانات الاعتماد (للمستودع الخاص)
+git config credential.helper store
+git pull
+# أدخل اسم المستخدم و Token عند الطلب (سيتم حفظها)
 ```
 
 ---
