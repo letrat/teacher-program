@@ -7,32 +7,12 @@
 ssh root@77.37.51.19
 ```
 
-### 2. استنساخ المشروع (مستودع خاص)
-
-**الطريقة 1: استخدام SSH (موصى به)**
-
-```bash
-# توليد SSH key (إذا لم يكن موجوداً)
-ssh-keygen -t ed25519 -C "your_email@example.com"
-cat ~/.ssh/id_ed25519.pub
-# انسخ المفتاح وأضفه إلى GitHub: Settings → SSH and GPG keys
-
-# استنساخ المستودع
-mkdir -p /var/www/teacher-program
-cd /var/www/teacher-program
-git clone git@github.com:letrat/teacher-program.git .
-```
-
-**الطريقة 2: استخدام Personal Access Token**
-
+### 2. استنساخ المشروع
 ```bash
 mkdir -p /var/www/teacher-program
 cd /var/www/teacher-program
-# استبدل YOUR_TOKEN بـ Personal Access Token من GitHub
-git clone https://YOUR_TOKEN@github.com/letrat/teacher-program.git .
+git clone https://github.com/letrat/teacher-program.git .
 ```
-
-**كيفية إنشاء Token:** GitHub → Settings → Developer settings → Personal access tokens → Generate new token (classic) → اختر `repo`
 
 ### 3. إعداد قاعدة البيانات
 ```bash
@@ -191,10 +171,9 @@ pm2 restart teacher-program-frontend
 
 ## ملاحظات مهمة
 
-1. **المستودع خاص:** استخدم SSH keys أو Personal Access Token للوصول
-2. استبدل `your_password` و `your_super_secret_jwt_key_change_this` بقيم حقيقية
-3. إذا كان لديك نطاق، استبدل `77.37.51.19` بالنطاق
-4. للحصول على SSL، استخدم Certbot: `certbot --nginx -d yourdomain.com`
+1. استبدل `your_password` و `your_super_secret_jwt_key_change_this` بقيم حقيقية
+2. إذا كان لديك نطاق، استبدل `77.37.51.19` بالنطاق
+3. للحصول على SSL، استخدم Certbot: `certbot --nginx -d yourdomain.com`
 
 ---
 
