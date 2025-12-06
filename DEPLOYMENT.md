@@ -105,25 +105,16 @@ EXIT;
 
 ## الخطوة 5: إعداد متغيرات البيئة
 
-### ملف `.env` في المجلد الرئيسي (لـ Frontend)
+### ⚠️ ملاحظة مهمة: Frontend يعمل على استضافة أخرى
 
-```bash
-cd /var/www/teacher-program
-nano .env
-```
+إذا كان Frontend يعمل على استضافة أخرى (مثل Hostinger Shared Hosting)، يجب إعداد:
 
-أضف المحتوى التالي:
+1. **في Backend (VPS):** إضافة نطاق Frontend إلى CORS
+2. **في Frontend (الاستضافة الأخرى):** إضافة رابط Backend إلى `.env`
 
-```env
-# Frontend Environment Variables
-NEXT_PUBLIC_API_URL=http://77.37.51.19:5000/api
-# أو إذا كنت تستخدم نطاق:
-# NEXT_PUBLIC_API_URL=https://yourdomain.com/api
+---
 
-NODE_ENV=production
-```
-
-### ملف `.env` في مجلد `backend/`
+### ملف `.env` في Backend (VPS)
 
 ```bash
 cd /var/www/teacher-program/backend
@@ -144,20 +135,43 @@ JWT_EXPIRES_IN=7d
 PORT=5000
 NODE_ENV=production
 
-# CORS (اسمح بالنطاق الخاص بك)
-CORS_ORIGIN=http://77.37.51.19:3000,http://localhost:3000
-# أو إذا كنت تستخدم نطاق:
-# CORS_ORIGIN=https://yourdomain.com,http://localhost:3000
+# CORS (اسمح بنطاق Frontend - يعمل على استضافة أخرى)
+# ⚠️ مهم: أضف نطاق Frontend هنا (مفصول بفواصل)
+CORS_ORIGIN=https://lightsalmon-dove-690724.hostingersite.com,http://localhost:3000
+# أو إذا كان لديك نطاق آخر:
+# CORS_ORIGIN=https://your-frontend-domain.com,http://localhost:3000
+
+# Frontend URL (يستخدم أيضاً في CORS)
+FRONTEND_URL=https://lightsalmon-dove-690724.hostingersite.com
 
 # File Upload
 UPLOAD_DIR=./uploads
 MAX_FILE_SIZE=10485760
 ```
 
+---
+
+### ملف `.env` في Frontend (الاستضافة الأخرى)
+
+إذا كان Frontend يعمل على استضافة أخرى، يجب إنشاء ملف `.env` هناك:
+
+```env
+# Frontend Environment Variables
+# رابط Backend على VPS
+NEXT_PUBLIC_API_URL=http://77.37.51.19:5000/api
+# أو إذا كان Backend خلف Nginx:
+# NEXT_PUBLIC_API_URL=http://77.37.51.19/api
+# أو إذا كان لديك نطاق للـ Backend:
+# NEXT_PUBLIC_API_URL=https://your-backend-domain.com/api
+
+NODE_ENV=production
+```
+
 **⚠️ مهم:** استبدل:
 - `your_strong_password` بكلمة مرور قاعدة البيانات
 - `your_super_secret_jwt_key_here_change_this` بمفتاح JWT قوي
-- `77.37.51.19` بعنوان IP أو النطاق الخاص بك
+- `77.37.51.19` بعنوان IP أو النطاق الخاص بـ Backend
+- `lightsalmon-dove-690724.hostingersite.com` بنطاق Frontend الخاص بك
 
 ---
 
@@ -352,31 +366,57 @@ systemctl restart nginx
 
 ---
 
-## الخطوة 9: تحديث Frontend للاتصال بالBackend
+## الخطوة 9: إعداد Frontend على الاستضافة الأخرى
 
-### تحديث `.env` في Frontend
+إذا كان Frontend يعمل على استضافة أخرى (مثل Hostinger Shared Hosting:
 
-تأكد من أن `NEXT_PUBLIC_API_URL` يشير إلى العنوان الصحيح:
+### 1. رفع ملفات Frontend
+
+ارفع جميع ملفات المشروع (مجلد `app/`, `components/`, `lib/`, `public/`, `package.json`, إلخ) إلى الاستضافة.
+
+### 2. إنشاء ملف `.env`
+
+أنشئ ملف `.env` في المجلد الرئيسي للمشروع على الاستضافة:
 
 ```env
-# إذا كنت تستخدم Nginx كـ Reverse Proxy
-NEXT_PUBLIC_API_URL=http://77.37.51.19/api
+NEXT_PUBLIC_API_URL=http://77.37.51.19:5000/api
+# أو إذا كان Backend خلف Nginx:
+# NEXT_PUBLIC_API_URL=http://77.37.51.19/api
+# أو إذا كان لديك نطاق:
+# NEXT_PUBLIC_API_URL=https://your-backend-domain.com/api
 
-# أو إذا كنت تستخدم نطاق
-# NEXT_PUBLIC_API_URL=https://yourdomain.com/api
+NODE_ENV=production
 ```
 
-**⚠️ مهم:** بعد تغيير `.env`، يجب إعادة بناء Frontend:
+### 3. تثبيت الحزم وبناء المشروع
 
 ```bash
-cd /var/www/teacher-program
+# تثبيت الحزم
+npm install
+
+# بناء المشروع
 npm run build
-pm2 restart teacher-program-frontend
 ```
+
+### 4. تشغيل Frontend
+
+اعتماداً على نوع الاستضافة:
+
+**إذا كانت Node.js متاحة:**
+```bash
+npm start
+```
+
+**إذا كانت Shared Hosting:**
+- قد تحتاج إلى استخدام Build Output (`npm run build` ثم رفع مجلد `.next/`)
+- أو استخدام Next.js Standalone Build
+- راجع إعدادات الاستضافة لمعرفة كيفية تشغيل Node.js
 
 ---
 
-## الخطوة 10: فتح المنافذ في Firewall
+---
+
+## الخطوة 11: فتح المنافذ في Firewall
 
 ```bash
 # فتح المنافذ (إذا كان Firewall مفعّل)
@@ -389,7 +429,7 @@ ufw allow 5000/tcp
 
 ---
 
-## الخطوة 11: إعداد SSL (اختياري - موصى به)
+## الخطوة 12: إعداد SSL (اختياري - موصى به)
 
 ```bash
 # تثبيت Certbot

@@ -23,20 +23,26 @@ EXIT;
 
 ### 4. إعداد ملفات البيئة
 
-**`.env` في المجلد الرئيسي:**
-```env
-NEXT_PUBLIC_API_URL=http://77.37.51.19/api
-NODE_ENV=production
-```
+**⚠️ ملاحظة:** إذا كان Frontend يعمل على استضافة أخرى، يجب إعداد CORS في Backend.
 
-**`backend/.env`:**
+**`backend/.env` (على VPS):**
 ```env
 DATABASE_URL="mysql://root:your_password@localhost:3306/teacher_program"
 JWT_SECRET=your_super_secret_jwt_key_change_this
 JWT_EXPIRES_IN=7d
 PORT=5000
 NODE_ENV=production
-CORS_ORIGIN=http://77.37.51.19:3000
+# ⚠️ أضف نطاق Frontend هنا (مفصول بفواصل)
+CORS_ORIGIN=https://lightsalmon-dove-690724.hostingersite.com,http://localhost:3000
+FRONTEND_URL=https://lightsalmon-dove-690724.hostingersite.com
+```
+
+**`.env` في Frontend (على الاستضافة الأخرى):**
+```env
+NEXT_PUBLIC_API_URL=http://77.37.51.19:5000/api
+# أو إذا كان Backend خلف Nginx:
+# NEXT_PUBLIC_API_URL=http://77.37.51.19/api
+NODE_ENV=production
 ```
 
 ### 5. تثبيت المتطلبات
@@ -53,9 +59,8 @@ apt-get update
 apt-get install -y nginx
 ```
 
-### 6. بناء وتشغيل المشروع
+### 6. بناء وتشغيل Backend على VPS
 
-**Backend:**
 ```bash
 cd /var/www/teacher-program/backend
 npm install
@@ -64,22 +69,22 @@ npm run db:push
 npm run build
 ```
 
-**Frontend:**
+### 7. تشغيل Backend باستخدام PM2
 ```bash
 cd /var/www/teacher-program
-npm install
-npm run build
-```
-
-### 7. تشغيل باستخدام PM2
-```bash
-cd /var/www/teacher-program
-pm2 start ecosystem.config.js
+# تشغيل Backend فقط (Frontend على استضافة أخرى)
+pm2 start ecosystem.config.js --only teacher-program-backend
 pm2 save
 pm2 startup
 ```
 
-### 8. إعداد Nginx
+### 8. إعداد Frontend على الاستضافة الأخرى
+
+1. ارفع ملفات Frontend إلى الاستضافة
+2. أنشئ ملف `.env` مع `NEXT_PUBLIC_API_URL=http://77.37.51.19:5000/api`
+3. شغّل `npm install && npm run build && npm start`
+
+### 9. إعداد Nginx (اختياري - فقط إذا أردت Reverse Proxy)
 
 إنشاء ملف `/etc/nginx/sites-available/teacher-program`:
 ```nginx
@@ -117,16 +122,16 @@ nginx -t
 systemctl restart nginx
 ```
 
-### 9. فتح المنافذ
+### 10. فتح المنافذ
 ```bash
 ufw allow 80/tcp
 ufw allow 443/tcp
 ufw allow 22/tcp
 ```
 
-### 10. التحقق
-- Frontend: http://77.37.51.19
-- Backend API: http://77.37.51.19/api
+### 11. التحقق
+- Frontend: https://lightsalmon-dove-690724.hostingersite.com (على الاستضافة الأخرى)
+- Backend API: http://77.37.51.19:5000/api (على VPS)
 
 ---
 
