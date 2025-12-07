@@ -62,7 +62,12 @@ export async function login(username: string, password: string): Promise<User> {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 3000) // 3 second timeout
       
-      const healthCheck = await fetch('http://localhost:5000/health', {
+      // Use NEXT_PUBLIC_API_URL or current origin for health check
+      const healthCheckUrl = typeof window !== 'undefined'
+        ? (process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || window.location.origin) + '/health'
+        : 'http://localhost:5000/health'
+      
+      const healthCheck = await fetch(healthCheckUrl, {
         method: 'GET',
         signal: controller.signal,
       })
@@ -79,12 +84,16 @@ export async function login(username: string, password: string): Promise<User> {
         ? 'Backend غير متاح - انتهت مهلة الاتصال'
         : 'Backend غير متاح'
       
+      const backendUrl = typeof window !== 'undefined'
+        ? (process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || window.location.origin)
+        : 'http://localhost:5000'
+      
       throw new Error(
         `${errorMessage}!\n` +
         `تأكد من:\n` +
         `1. تشغيل Backend: cd backend && npm run dev\n` +
-        `2. Backend يعمل على: http://localhost:5000\n` +
-        `3. اختبر: http://localhost:5000/health`
+        `2. Backend يعمل على: ${backendUrl}\n` +
+        `3. اختبر: ${backendUrl}/health`
       )
     }
     

@@ -101,7 +101,7 @@ GRANT ALL PRIVILEGES ON teacher_program.* TO 'teacher_user'@'localhost';
 FLUSH PRIVILEGES;
 EXIT;
 ```
-
+   
 ---
 
 ## الخطوة 5: إعداد متغيرات البيئة
@@ -284,6 +284,16 @@ nano /etc/nginx/sites-available/teacher-program
 server {
     listen 80;
     server_name 77.37.51.19;
+
+    # Backend Health Check
+    location /health {
+        proxy_pass http://localhost:5000/health;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
 
     # Backend API
     location /api {
