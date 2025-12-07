@@ -69,11 +69,17 @@ export default function SchoolsAndUsersPage() {
     subscriptionStart: '',
     subscriptionEnd: '',
   })
-  const [userFormData, setUserFormData] = useState({
+  const [userFormData, setUserFormData] = useState<{
+    username: string
+    password: string
+    name: string
+    role: UserRole
+    jobTypeId: string
+  }>({
     username: '',
     password: '',
     name: '',
-    role: 'TEACHER' as UserRole,
+    role: UserRole.TEACHER,
     jobTypeId: '',
   })
   
@@ -198,7 +204,7 @@ export default function SchoolsAndUsersPage() {
         username: '',
         password: '',
         name: '',
-        role: 'TEACHER',
+        role: UserRole.TEACHER,
         jobTypeId: '',
       })
       // Refresh details
@@ -488,7 +494,7 @@ export default function SchoolsAndUsersPage() {
                   <option value="TEACHER">معلم</option>
                 </select>
               </div>
-              {userFormData.role === 'TEACHER' && (
+              {userFormData.role === UserRole.TEACHER && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">الصفة الوظيفية</label>
                   <select

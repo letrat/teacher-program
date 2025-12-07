@@ -42,7 +42,7 @@ export default function UsersPage() {
     username: '',
     password: '',
     name: '',
-    role: 'TEACHER' as UserRole,
+    role: UserRole.TEACHER,
     schoolId: '',
     jobTypeId: '',
   })
@@ -85,7 +85,7 @@ export default function UsersPage() {
         username: '',
         password: '',
         name: '',
-        role: 'TEACHER',
+        role: UserRole.TEACHER,
         schoolId: '',
         jobTypeId: '',
       })
