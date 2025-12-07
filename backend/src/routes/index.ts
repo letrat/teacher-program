@@ -8,6 +8,24 @@ import teacherRoutes from './teacher'
 
 const router = Router()
 
+// Root API endpoint - handle /api/ requests
+router.get('/', (req, res) => {
+  res.json({
+    message: 'Teacher Program API',
+    version: '1.0.0',
+    status: 'running',
+    endpoints: {
+      auth: '/api/auth',
+      admin: '/api/admin',
+      school: '/api/school',
+      teacher: '/api/teacher',
+      notifications: '/api/notifications',
+      upload: '/api/upload',
+    },
+    health: '/health',
+  })
+})
+
 router.use('/auth', authRoutes)
 router.use('/notifications', notificationRoutes)
 router.use('/upload', uploadRoutes)

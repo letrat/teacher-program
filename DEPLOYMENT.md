@@ -4,8 +4,9 @@
 
 - **VPS IP:** 77.37.51.19
 - **VPS User:** root
-- **Frontend Domain:** https://lightsalmon-dove-690724.hostingersite.com
+- **Frontend:** يعمل على VPS (77.37.51.19:3000)
 - **Backend:** يعمل على VPS (77.37.51.19:5000)
+- **Nginx:** يوجّه الطلبات إلى Frontend و Backend
 
 ---
 
@@ -53,14 +54,35 @@ apt-get install -y mysql-server
 
 ## الخطوة 3: استنساخ المشروع من GitHub
 
+**ملاحظة مهمة:** المشروع يحتوي على Frontend (Next.js) و Backend (Express) و Middleware في مستودع واحد. عند استنساخ المشروع، ستحصل على جميع المكونات معاً.
+
 ```bash
 # إنشاء مجلد للمشروع
 mkdir -p /var/www/teacher-program
 cd /var/www/teacher-program
 
-# استنساخ المشروع
+# استنساخ المشروع (سيجلب Frontend + Backend + Middleware)
 git clone https://github.com/letrat/teacher-program.git .
 ```
+
+**بنية المشروع بعد الاستنساخ:**
+```
+/var/www/teacher-program/
+├── app/                    # Frontend (Next.js)
+├── components/             # Frontend Components
+├── lib/                    # Frontend Libraries
+├── public/                 # Frontend Static Files
+├── package.json            # Frontend Dependencies
+├── backend/                # Backend (Express)
+│   ├── src/
+│   │   ├── routes/         # API Routes
+│   │   ├── middleware/     # Backend Middleware
+│   │   └── ...
+│   └── package.json        # Backend Dependencies
+└── ecosystem.config.js     # PM2 Configuration
+```
+
+**في هذا الدليل:** ستعمل على تشغيل Frontend و Backend معاً على نفس VPS.
 
 ---
 
@@ -105,16 +127,32 @@ JWT_EXPIRES_IN=7d
 PORT=5000
 NODE_ENV=production
 
-# CORS - Frontend يعمل على استضافة أخرى
-CORS_ORIGIN=https://lightsalmon-dove-690724.hostingersite.com,http://localhost:3000
-FRONTEND_URL=https://lightsalmon-dove-690724.hostingersite.com
+# CORS - Frontend يعمل على نفس السيرفر
+CORS_ORIGIN=http://77.37.51.19,http://localhost:3000
+FRONTEND_URL=http://77.37.51.19
 
 # File Upload
 UPLOAD_DIR=./uploads
 MAX_FILE_SIZE=10485760
 ```
 
-**⚠️ مهم:** استبدل `your_super_secret_jwt_key_here_change_this_to_random_string` بمفتاح JWT قوي. يمكنك توليده باستخدام:
+### ملف `.env` في Frontend
+
+```bash
+cd /var/www/teacher-program
+nano .env
+```
+
+أضف المحتوى التالي:
+
+```env
+NEXT_PUBLIC_API_URL=http://77.37.51.19/api
+NODE_ENV=production
+```
+
+**ملاحظة:** نستخدم `/api` لأن Nginx يوجّه `/api` إلى Backend على port 5000.
+
+**⚠️ مهم:** استبدل `techer-program-jwt-secret-2024` بمفتاح JWT قوي. يمكنك توليده باستخدام:
 
 ```bash
 openssl rand -base64 32
@@ -122,7 +160,9 @@ openssl rand -base64 32
 
 ---
 
-## الخطوة 6: تثبيت الحزم وبناء Backend
+## الخطوة 6: تثبيت الحزم وبناء Backend و Frontend
+
+### بناء Backend
 
 ```bash
 cd /var/www/teacher-program/backend
@@ -140,9 +180,21 @@ npm run db:push
 npm run build
 ```
 
+### بناء Frontend
+
+```bash
+cd /var/www/teacher-program
+
+# تثبيت حزم Frontend
+npm install
+
+# بناء Frontend
+npm run build
+```
+
 ---
 
-## الخطوة 7: إعداد PM2 لتشغيل Backend
+## الخطوة 7: إعداد PM2 لتشغيل Backend و Frontend
 
 ### إنشاء ملف إعداد PM2
 
@@ -151,7 +203,7 @@ cd /var/www/teacher-program
 nano ecosystem.config.js
 ```
 
-تأكد من وجود المحتوى التالي (يجب أن يكون موجوداً):
+تأكد من وجود المحتوى التالي:
 
 ```javascript
 module.exports = {
@@ -171,19 +223,35 @@ module.exports = {
       merge_logs: true,
       autorestart: true,
       max_memory_restart: '1G'
+    },
+    {
+      name: 'teacher-program-frontend',
+      cwd: '/var/www/teacher-program',
+      script: 'npm',
+      args: 'start',
+      env: {
+        NODE_ENV: 'production',
+        PORT: 3000
+      },
+      error_file: '/var/log/pm2/frontend-error.log',
+      out_file: '/var/log/pm2/frontend-out.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      merge_logs: true,
+      autorestart: true,
+      max_memory_restart: '1G'
     }
   ]
 }
 ```
 
-### تشغيل Backend باستخدام PM2
+### تشغيل Backend و Frontend باستخدام PM2
 
 ```bash
 # إنشاء مجلد للسجلات
 mkdir -p /var/log/pm2
 
-# تشغيل Backend فقط
-pm2 start ecosystem.config.js --only teacher-program-backend
+# تشغيل Backend و Frontend
+pm2 start ecosystem.config.js
 
 # حفظ الإعدادات لبدء تلقائي عند إعادة التشغيل
 pm2 save
@@ -196,7 +264,9 @@ pm2 startup
 pm2 status
 ```
 
-يجب أن ترى `teacher-program-backend` في حالة `online`.
+يجب أن ترى:
+- `teacher-program-backend` في حالة `online` (port 5000)
+- `teacher-program-frontend` في حالة `online` (port 3000)
 
 ---
 
@@ -228,6 +298,19 @@ server {
         proxy_connect_timeout 60s;
         proxy_send_timeout 60s;
         proxy_read_timeout 60s;
+    }
+
+    # Frontend (Next.js)
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_cache_bypass $http_upgrade;
     }
 
     # ملفات الرفع
@@ -273,7 +356,8 @@ systemctl restart nginx
 ufw allow 80/tcp
 ufw allow 443/tcp
 ufw allow 22/tcp
-ufw allow 5000/tcp
+ufw allow 5000/tcp  # Backend
+ufw allow 3000/tcp  # Frontend (اختياري - فقط إذا أردت الوصول المباشر)
 
 # تفعيل Firewall (إذا لم يكن مفعّل)
 ufw enable
@@ -281,72 +365,24 @@ ufw enable
 
 ---
 
-## الخطوة 10: إعداد Frontend على الاستضافة الأخرى
+## الخطوة 10: التحقق من التشغيل
 
-### 1. رفع ملفات Frontend
-
-ارفع جميع ملفات المشروع إلى الاستضافة:
-- `app/`
-- `components/`
-- `lib/`
-- `public/`
-- `package.json`
-- `package-lock.json`
-- `next.config.js`
-- `tsconfig.json`
-- `tailwind.config.js`
-- `postcss.config.js`
-- وغيرها من الملفات المطلوبة
-
-### 2. إنشاء ملف `.env` في Frontend
-
-على الاستضافة الأخرى، أنشئ ملف `.env` في المجلد الرئيسي:
-
-```env
-NEXT_PUBLIC_API_URL=http://77.37.51.19/api
-NODE_ENV=production
-```
-
-**ملاحظة:** نستخدم `/api` لأن Nginx يوجّه `/api` إلى Backend على port 5000.
-
-### 3. تثبيت الحزم وبناء Frontend
-
-```bash
-# تثبيت الحزم
-npm install
-
-# بناء المشروع
-npm run build
-```
-
-### 4. تشغيل Frontend
-
-اعتماداً على نوع الاستضافة:
-
-**إذا كانت Node.js متاحة:**
-```bash
-npm start
-```
-
-**إذا كانت Shared Hosting:**
-- راجع إعدادات الاستضافة لمعرفة كيفية تشغيل Node.js
-- قد تحتاج إلى استخدام Build Output أو Standalone Build
-
----
-
-## الخطوة 11: التحقق من التشغيل
-
-### التحقق من Backend على VPS
+### التحقق من Backend و Frontend على VPS
 
 ```bash
 # التحقق من PM2
 pm2 status
 
 # التحقق من المنافذ
-netstat -tulpn | grep 5000
+netstat -tulpn | grep 5000  # Backend
+netstat -tulpn | grep 3000  # Frontend
 
 # اختبار API
 curl http://localhost:5000/api
+curl http://localhost:5000/api/teacher
+
+# اختبار Frontend
+curl http://localhost:3000
 ```
 
 ### التحقق من Nginx
@@ -357,8 +393,9 @@ systemctl status nginx
 
 ### اختبار الوصول
 
+- **Frontend:** `http://77.37.51.19`
 - **Backend API:** `http://77.37.51.19/api`
-- **Frontend:** `https://lightsalmon-dove-690724.hostingersite.com`
+- **Backend Health:** `http://77.37.51.19/health` (يجب أن يعمل مباشرة على Backend)
 
 ---
 
@@ -369,6 +406,7 @@ systemctl status nginx
 ```bash
 # سجلات PM2
 pm2 logs teacher-program-backend
+pm2 logs teacher-program-frontend
 
 # سجلات Nginx
 tail -f /var/log/nginx/error.log
@@ -377,6 +415,10 @@ tail -f /var/log/nginx/access.log
 # سجلات Backend
 tail -f /var/log/pm2/backend-error.log
 tail -f /var/log/pm2/backend-out.log
+
+# سجلات Frontend
+tail -f /var/log/pm2/frontend-error.log
+tail -f /var/log/pm2/frontend-out.log
 ```
 
 ### التحقق من الاتصال بقاعدة البيانات
@@ -386,25 +428,40 @@ cd /var/www/teacher-program/backend
 npm run db:push
 ```
 
-### إعادة بناء Backend
+### إعادة بناء Backend و Frontend
 
 ```bash
+# إعادة بناء Backend
 cd /var/www/teacher-program/backend
 npm run build
 pm2 restart teacher-program-backend
+
+# إعادة بناء Frontend
+cd /var/www/teacher-program
+npm run build
+pm2 restart teacher-program-frontend
 ```
 
 ### التحقق من CORS
 
 إذا واجهت مشاكل CORS، تأكد من:
-
 1. أن `CORS_ORIGIN` في `backend/.env` يحتوي على نطاق Frontend:
    ```env
-   CORS_ORIGIN=https://lightsalmon-dove-690724.hostingersite.com,http://localhost:3000
-   FRONTEND_URL=https://lightsalmon-dove-690724.hostingersite.com
+   CORS_ORIGIN=http://77.37.51.19,http://localhost:3000
+   FRONTEND_URL=http://77.37.51.19
    ```
 
 2. إعادة تشغيل Backend بعد تغيير `.env`:
+   ```bash
+   pm2 restart teacher-program-backend
+   ```
+
+### إصلاح مشاكل Routing
+
+إذا واجهت مشكلة 404 عند الوصول إلى `/api`:
+1. تأكد من أن Backend يحتوي على route handler للـ `/api/` في `backend/src/routes/index.ts`
+2. تحقق من أن Nginx يوجّه `/api` بشكل صحيح إلى `localhost:5000/api`
+3. أعد تشغيل Backend:
    ```bash
    pm2 restart teacher-program-backend
    ```
@@ -415,7 +472,7 @@ pm2 restart teacher-program-backend
 
 عند تحديث المشروع:
 
-### على VPS (Backend):
+### على VPS (Backend و Frontend):
 
 ```bash
 cd /var/www/teacher-program
@@ -429,24 +486,12 @@ npm install
 npm run db:generate  # إذا كان هناك تغييرات في Schema
 npm run build
 pm2 restart teacher-program-backend
-```
 
-### على الاستضافة الأخرى (Frontend):
-
-```bash
-# سحب التحديثات (إذا كان Git متاح)
-git pull origin main
-
-# أو رفع الملفات المحدثة يدوياً
-
-# تثبيت الحزم الجديدة
+# Frontend
+cd ..
 npm install
-
-# بناء المشروع
 npm run build
-
-# إعادة تشغيل
-npm start
+pm2 restart teacher-program-frontend
 ```
 
 ---
@@ -465,14 +510,27 @@ pm2 logs
 # إعادة تشغيل Backend
 pm2 restart teacher-program-backend
 
+# إعادة تشغيل Frontend
+pm2 restart teacher-program-frontend
+
+# إعادة تشغيل كل شيء
+pm2 restart all
+
 # إيقاف Backend
 pm2 stop teacher-program-backend
+
+# إيقاف Frontend
+pm2 stop teacher-program-frontend
 
 # بدء Backend
 pm2 start teacher-program-backend
 
-# حذف Backend من PM2
+# بدء Frontend
+pm2 start teacher-program-frontend
+
+# حذف من PM2
 pm2 delete teacher-program-backend
+pm2 delete teacher-program-frontend
 
 # مراقبة الأداء
 pm2 monit
@@ -551,24 +609,24 @@ SHOW TABLES;
 3. تحقق من الاتصال بقاعدة البيانات
 4. تحقق من متغيرات البيئة (`.env`)
 5. تحقق من CORS إذا كانت الطلبات من Frontend تفشل
+6. تحقق من routing في Backend (`/api` يجب أن يعيد معلومات API)
 
 ---
 
 ## ملخص الإعدادات
 
-### Backend (VPS - 77.37.51.19)
+### VPS (77.37.51.19)
 
-- **Port:** 5000
+- **Frontend Port:** 3000
+- **Backend Port:** 5000
 - **Database:** teacher_program
-- **User:** teacher_user
-- **PM2:** teacher-program-backend
-- **Nginx:** يوجّه `/api` إلى `localhost:5000/api`
-
-### Frontend (Hostinger - lightsalmon-dove-690724.hostingersite.com)
-
-- **Domain:** https://lightsalmon-dove-690724.hostingersite.com
-- **API URL:** http://77.37.51.19/api
-- **Environment:** production
+- **Database User:** teacher_user
+- **PM2 Apps:** 
+  - teacher-program-frontend
+  - teacher-program-backend
+- **Nginx:** 
+  - يوجّه `/` إلى `localhost:3000` (Frontend)
+  - يوجّه `/api` إلى `localhost:5000/api` (Backend)
 
 ---
 
@@ -597,16 +655,22 @@ mysql -u root -p
 cd backend
 nano .env
 # أضف DATABASE_URL, JWT_SECRET, CORS_ORIGIN, FRONTEND_URL
+cd ..
+nano .env
+# أضف NEXT_PUBLIC_API_URL
 
-# 6. بناء Backend
+# 6. بناء Backend و Frontend
+cd backend
 npm install
 npm run db:generate
 npm run db:push
 npm run build
+cd ..
+npm install
+npm run build
 
 # 7. تشغيل PM2
-cd ..
-pm2 start ecosystem.config.js --only teacher-program-backend
+pm2 start ecosystem.config.js
 pm2 save
 pm2 startup
 
@@ -618,9 +682,9 @@ nginx -t
 systemctl restart nginx
 
 # 9. فتح المنافذ
-ufw allow 80/tcp 443/tcp 22/tcp 5000/tcp
+ufw allow 80/tcp 443/tcp 22/tcp 5000/tcp 3000/tcp
 ```
 
 ---
 
-**تم إعداد الدليل الكامل!** اتبع الخطوات بالترتيب وستحصل على Backend يعمل على VPS و Frontend يعمل على الاستضافة الأخرى.
+**تم إعداد الدليل الكامل!** اتبع الخطوات بالترتيب وستحصل على Frontend و Backend يعملان معاً على نفس VPS.
