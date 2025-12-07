@@ -4,7 +4,7 @@ import { ReactNode } from 'react'
 import { useAuth } from '@/components/providers/AuthProvider'
 import Sidebar from './Sidebar'
 import TopBar from './TopBar'
-import { UserRole } from '@prisma/client'
+import { UserRole } from '@/types'
 
 interface DashboardLayoutProps {
   children: ReactNode

@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { useAuth } from '@/components/providers/AuthProvider'
-import { UserRole } from '@prisma/client'
+import { UserRole } from '@/types'
 import { LogIn, User, Lock, Eye, EyeOff, Shield, School, GraduationCap, AlertCircle } from 'lucide-react'
 
 export default function LoginPage() {

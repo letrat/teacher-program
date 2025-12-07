@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { X, Lock, User, Mail, Building, Briefcase, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { api } from '@/lib/api'
-import { UserRole } from '@prisma/client'
+import { UserRole } from '@/types'
 
 interface AccountSettingsModalProps {
   isOpen: boolean

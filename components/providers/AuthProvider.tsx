@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { initAuth, getCurrentUser, login, logout, subscribe, AuthState, User } from '@/lib/auth-client'
-import { UserRole } from '@prisma/client'
+import { UserRole } from '@/types'
 
 interface AuthContextType extends AuthState {
   login: (username: string, password: string) => Promise<User>

@@ -1,5 +1,5 @@
 import React from 'react'
-import { UserRole } from '@prisma/client'
+import { UserRole } from '@/types'
 
 interface School {
   id: string

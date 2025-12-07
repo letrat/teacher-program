@@ -19,7 +19,7 @@ import {
   ChevronLeft
 } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
-import { UserRole } from '@prisma/client'
+import { UserRole } from '@/types'
 import { useIsMobile, useIsDesktop } from '@/lib/hooks/useIsMobile'
 import { useWindowSize } from '@/lib/hooks/useWindowSize'
 import AccountSettingsModal from './AccountSettingsModal'

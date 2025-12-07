@@ -1,6 +1,6 @@
 import React from 'react'
 import { X, Users, FileText, BarChart3, Shield, AlertCircle, CheckCircle } from 'lucide-react'
-import { UserRole } from '@prisma/client'
+import { UserRole } from '@/types'
 
 // Types reused from page (should ideally be in a types file)
 interface User {

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { UserRole } from '@prisma/client'
+import { UserRole } from '@/types'
 
 interface User {
   id: string

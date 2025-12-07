@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import api from '@/lib/api'
-import { UserRole } from '@prisma/client'
+import { UserRole } from '@/types'
 import { SchoolCard } from '@/components/admin/SchoolCard'
 import { SchoolDetailsDrawer } from '@/components/admin/SchoolDetailsDrawer'
 import { Plus, Search, Filter } from 'lucide-react'

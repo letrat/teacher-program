@@ -4,7 +4,7 @@
  */
 
 import api, { setAuthToken, removeAuthToken, setCSRFToken } from './api'
-import { UserRole } from '@prisma/client'
+import { UserRole } from '@/types'
 
 export interface User {
   id: string

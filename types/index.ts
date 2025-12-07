@@ -1,5 +1,12 @@
-// Re-export Prisma types for consistency
-export { UserRole, SubmissionStatus, NotificationType } from '@prisma/client'
+// Define UserRole enum locally to avoid Prisma client issues during build/prerendering
+export enum UserRole {
+  ADMIN = 'ADMIN',
+  SCHOOL_MANAGER = 'SCHOOL_MANAGER',
+  TEACHER = 'TEACHER'
+}
+
+// Re-export other Prisma types
+export { SubmissionStatus, NotificationType } from '@prisma/client'
 
 export interface User {
   id: string
